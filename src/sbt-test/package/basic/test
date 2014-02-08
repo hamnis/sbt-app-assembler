@@ -1,2 +1,3 @@
 > assemble
-$ exists target/dist
+$ exists target/dist/bin/main
+$ exists target/dist/bin/main.bat
