@@ -1,19 +1,17 @@
-import _root_.sbt._
+
 import sbt._
 import Keys._
 import Load.BuildStructure
 import classpath.ClasspathUtilities
-import Project.Initialize
-import CommandSupport._
+import Def.Initialize
 
 import java.io.File
-import scala.collection.mutable.{Set => MutableSet}
 
 object SbtAppAssemblerPlugin extends Plugin {
 
   case class DistConfig(outputDirectory: File,
                         configSourceDirs: Seq[File],
-                        distJvmOptions: String,
+                        distJvmOptions: Seq[String],
                         distMainClass: String,
                         libFilter: File ⇒ Boolean,
                         additionalLibs: Seq[File])
@@ -25,71 +23,58 @@ object SbtAppAssemblerPlugin extends Plugin {
   val outputDirectory = SettingKey[File]("app-assembler-output-directory")
   val configSourceDirs = TaskKey[Seq[File]]("app-assembler-conf-source-directories","Configuration files are copied from these directories")
 
-  val appAssemblerJvmOptions = SettingKey[String]("app-assembler-jvm-options", "JVM parameters to use in start script")
-  val appAssemblerMainClass = SettingKey[String]("app-assembler-main-class", "App main class to use in start script")
+  val appAssemblerJvmOptions = SettingKey[Seq[String]]("app-assembler-jvm-options", "JVM parameters to use in start script")
+  val appAssemblerMainClass = TaskKey[String]("app-assembler-main-class", "App main class to use in start script")
 
   val libFilter = SettingKey[File ⇒ Boolean]("app-assembler-lib-filter", "Filter of dependency jar files")
   val additionalLibs = TaskKey[Seq[File]]("app-assembleradditional-libs", "Additional dependency jar files")
   val distConfig = TaskKey[DistConfig]("app-assembler")
 
-  val distNeedsPackageBin = dist <<= dist.dependsOn(packageBin in Compile)
-
-  lazy val appAssemblerSettings: Seq[sbt.Project.Setting[_]] =
+  lazy val appAssemblerSettings: Seq[Setting[_]] =
     inConfig(Assemble)(Seq(
-      dist <<= packageBin.identity,
-      packageBin <<= distTask,
+      dist <<= distTask,
       distClean <<= distCleanTask,
-      dependencyClasspath <<= (dependencyClasspath in Runtime).identity,
-      unmanagedResourceDirectories <<= (unmanagedResourceDirectories in Runtime).identity,
-      outputDirectory <<= target / "dist",
+      dependencyClasspath <<= (dependencyClasspath in Runtime),
+      unmanagedResourceDirectories <<= (unmanagedResourceDirectories in Runtime),
+      outputDirectory := target.value / "dist",
       configSourceDirs <<= defaultConfigSourceDirs,
+      appAssemblerJvmOptions := Nil,
+      appAssemblerMainClass := (mainClass in Compile).value.get,
       libFilter := {
         f ⇒ true
       },
       additionalLibs <<= defaultAdditionalLibs,
       distConfig <<= (outputDirectory, configSourceDirs, appAssemblerJvmOptions, appAssemblerMainClass, libFilter, additionalLibs) map DistConfig)) ++
-      Seq(dist <<= (dist in Assemble).identity, distNeedsPackageBin)
+      Seq(dist <<= dist in Assemble)
 
   private def distTask: Initialize[Task[File]] =
-    (distConfig, sourceDirectory, crossTarget, dependencyClasspath, projectDependencies, allDependencies, buildStructure, state) map {
-      (conf, src, tgt, cp, projDeps, allDeps, buildStruct, st) ⇒
+    (distConfig, sourceDirectory, packageBin in Compile, dependencyClasspath, streams) map {
+      (conf, src, bin, cp, streams) ⇒
 
-        if (isKernelProject(allDeps)) {
-          val log = logger(st)
-          val distBinPath = conf.outputDirectory / "bin"
-          val distConfigPath = conf.outputDirectory / "conf"
-          val distLibPath = conf.outputDirectory / "lib"
+        val distBinPath = conf.outputDirectory / "bin"
+        val distConfigPath = conf.outputDirectory / "conf"
+        val distLibPath = conf.outputDirectory / "lib"
+        
+        streams.log.info("Creating distribution %s ..." format conf.outputDirectory)
+        IO.createDirectory(conf.outputDirectory)
+        Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.distMainClass).writeScripts(distBinPath)
+        copyDirectories(conf.configSourceDirs, distConfigPath)        
+        copyFiles(Seq(bin), distLibPath)
+        copyFiles(libFiles(cp, conf.libFilter), distLibPath)
+        copyFiles(conf.additionalLibs, distLibPath)
 
-          val subProjectDependencies: Set[SubProjectInfo] = allSubProjectDependencies(projDeps, buildStruct, st)
+        streams.log.info("Distribution created.")
 
-          log.info("Creating distribution %s ..." format conf.outputDirectory)
-          IO.createDirectory(conf.outputDirectory)
-          Scripts(conf.distJvmOptions, conf.distMainClass).writeScripts(distBinPath)
-          copyDirectories(conf.configSourceDirs, distConfigPath)
-          copyJars(tgt, distLibPath)
-
-          copyFiles(libFiles(cp, conf.libFilter), distLibPath)
-          copyFiles(conf.additionalLibs, distLibPath)
-          for (subTarget <- subProjectDependencies.map(_.target)) {
-            copyJars(subTarget, distLibPath)
-          }
-          log.info("Distribution created.")
-        }
         conf.outputDirectory
     }
 
   private def distCleanTask: Initialize[Task[Unit]] =
-    (outputDirectory, allDependencies, streams) map {
-      (outDir, deps, s) ⇒
-
-        if (isKernelProject(deps)) {
+    (outputDirectory, streams) map {
+      (outDir, s) ⇒        
           val log = s.log
           log.info("Cleaning " + outDir)
           IO.delete(outDir)
-        }
-    }
-
-  def isKernelProject(dependencies: Seq[ModuleID]): Boolean = true
+  }
 
   private def defaultConfigSourceDirs = (sourceDirectory, unmanagedResourceDirectories) map {
     (src, resources) ⇒
@@ -168,67 +153,5 @@ object SbtAppAssemblerPlugin extends Plugin {
     val (libs, directories) = classpath.map(_.data).partition(ClasspathUtilities.isArchive)
     libs.map(_.asFile).filter(libFilter)
   }
-
-  private def allSubProjectDependencies(projDeps: Seq[ModuleID], buildStruct: BuildStructure, state: State): Set[SubProjectInfo] = {
-    val buildUnit = buildStruct.units(buildStruct.root)
-    val uri = buildStruct.root
-    val allProjects = buildUnit.defined.map {
-      case (id, proj) => (ProjectRef(uri, id) -> proj)
-    }
-
-    val projDepsNames = projDeps.map(_.name)
-    def include(project: ResolvedProject): Boolean = projDepsNames.exists(_ == project.id)
-    val subProjects: Seq[SubProjectInfo] = allProjects.collect {
-      case (projRef, project) if include(project) => projectInfo(projRef, project, buildStruct, state, allProjects)
-    }.toList
-
-    val allSubProjects = subProjects.map(_.recursiveSubProjects).flatten.toSet
-    allSubProjects
-  }
-
-  private def projectInfo(projectRef: ProjectRef, project: ResolvedProject, buildStruct: BuildStructure, state: State,
-                          allProjects: Map[ProjectRef, ResolvedProject]): SubProjectInfo = {
-
-    def optionalSetting[A](key: ScopedSetting[A]) = key in projectRef get buildStruct.data
-
-    def setting[A](key: ScopedSetting[A], errorMessage: => String) = {
-      optionalSetting(key) getOrElse {
-        logger(state).error(errorMessage);
-        throw new IllegalArgumentException()
-      }
-    }
-
-    def evaluateTask[T](taskKey: sbt.Project.ScopedKey[sbt.Task[T]]) = {
-      EvaluateTask.evaluateTask(buildStruct, taskKey, state, projectRef, false, EvaluateTask.SystemProcessors)
-    }
-
-    val projDeps: Seq[ModuleID] = evaluateTask(Keys.projectDependencies) match {
-      case Some(Value(moduleIds)) => moduleIds
-      case _ => Seq.empty
-    }
-
-    val projDepsNames = projDeps.map(_.name)
-    def include(project: ResolvedProject): Boolean = projDepsNames.exists(_ == project.id)
-    val subProjects = allProjects.collect {
-      case (projRef, proj) if include(proj) => projectInfo(projRef, proj, buildStruct, state, allProjects)
-    }.toList
-
-    val target = setting(Keys.crossTarget, "Missing crossTarget directory")
-    SubProjectInfo(project.id, target, subProjects)
-  }
-
-  private case class SubProjectInfo(id: String, target: File, subProjects: Seq[SubProjectInfo]) {
-
-    def recursiveSubProjects: Set[SubProjectInfo] = {
-      val flatSubProjects = for {
-        x <- subProjects
-        y <- x.recursiveSubProjects
-      } yield y
-
-      flatSubProjects.toSet + this
-    }
-
-  }
-
 }
 
