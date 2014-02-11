@@ -2,8 +2,8 @@ package appassembler
 
 import sbt._
 
-case class AppConfig(outputDirectory: Directory,
-                      configSourceDirs: Seq[File],
+case class AppConfig (outputDirectory: Directory,
+                      autoIncludeDirs: Seq[Directory],
                       distJvmOptions: Seq[String],
                       programs: Seq[Program],
                       libFilter: File ⇒ Boolean,

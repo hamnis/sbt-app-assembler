@@ -14,7 +14,7 @@ object SbtAppAssemblerPlugin extends Plugin {
   val appAssemble = TaskKey[Directory]("assemble", "Builds the app assembly directory")
 
   val appOutputDirectory = SettingKey[Directory]("app-output-directory")
-  val appConfigSourceDirs = TaskKey[Seq[Directory]]("app-conf-source-directories","Configuration files are copied from these directories")
+  val appAutoIncludeDirs = TaskKey[Seq[Directory]]("app-auto-includes-directories","Files are copied from these directories")
 
   val appJvmOptions = SettingKey[Seq[String]]("app-jvm-options", "JVM parameters to use in start script")
 
@@ -31,23 +31,22 @@ object SbtAppAssemblerPlugin extends Plugin {
       dependencyClasspath <<= (dependencyClasspath in Runtime),
       unmanagedResourceDirectories <<= (unmanagedResourceDirectories in Runtime),
       appOutputDirectory := target.value / "dist",
-      appConfigSourceDirs <<= defaultConfigSourceDirs,
+      appAutoIncludeDirs <<= defaultAutoIncludeDirs,
       appJvmOptions := Nil,
-      appPrograms <<= (discoveredMainClasses in Compile) map { (classes) =>
-        val programs = classes.map(mc => Program(mc))
+      appPrograms <<= (appPrograms in Compile, discoveredMainClasses in Compile) map { (pgs, classes) =>
+        val programs = if (!pgs.isEmpty) pgs else classes.map(mc => Program(mc))
         if (programs.isEmpty) sys.error("No Main classes detected.") else programs
       },
       appLibFilter := (_ => true),
       appAdditionalLibs := Seq.empty[File],
-      appConfig <<= (appOutputDirectory, appConfigSourceDirs, appJvmOptions, appPrograms, appLibFilter, appAdditionalLibs) map AppConfig)) ++
+      appConfig <<= (appOutputDirectory, appAutoIncludeDirs, appJvmOptions, appPrograms, appLibFilter, appAdditionalLibs) map AppConfig)) ++
       Seq(appAssemble <<= appAssemble in App)
 
-  private def distTask: Initialize[Task[File]] =
-    (appConfig, packageBin in Compile, dependencyClasspath, streams) map {
+  private def distTask = (appConfig, packageBin in Compile, dependencyClasspath, streams) map {
       (conf, bin, cp, streams) ⇒ 
         streams.log.info("Creating distribution %s ..." format conf.outputDirectory)
         try {
-          DistBuilder.create(conf, bin, cp)(streams.log)
+          DistBuilder.createDirectory(conf, bin, cp)(streams.log)
           streams.log.info("Distribution created.")
           conf.outputDirectory
         } catch {
@@ -55,16 +54,14 @@ object SbtAppAssemblerPlugin extends Plugin {
         }
     }
 
-  private def distCleanTask: Initialize[Task[Unit]] =
-    (appOutputDirectory, streams) map {
+  private def distCleanTask = (appOutputDirectory, streams) map {
       (outDir, s) ⇒        
           s.log.info("Cleaning " + outDir)
           IO.delete(outDir)
   }
 
-  private def defaultConfigSourceDirs = (sourceDirectory, unmanagedResourceDirectories) map {
-    (src, resources) ⇒
-      Seq(src / "etc", src / "main" / "etc") ++ resources
+  private def defaultAutoIncludeDirs = (sourceDirectory, target) map { (src, target) => 
+    Seq(src / "app", target / "app")
   }
 }
 
