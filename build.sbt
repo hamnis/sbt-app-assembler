@@ -13,6 +13,8 @@ scalacOptions := Seq("-deprecation")
 
 ScriptedPlugin.scriptedSettings
 
+libraryDependencies += "org.apache.commons" % "commons-compress" % "1.7"
+
 credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 publishTo <<= (version) { version: String =>

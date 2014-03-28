@@ -37,6 +37,7 @@ object SbtAppAssemblerPlugin extends Plugin {
         val programs = if (!pgs.isEmpty) pgs else classes.map(mc => Program(mc))
         if (programs.isEmpty) sys.error("No Main classes detected.") else programs
       },
+      packageBin <<= distTaskZip,
       appLibFilter := (_ => true),
       appAdditionalLibs := Seq.empty[File],
       appConfig <<= (appOutputDirectory, appAutoIncludeDirs, appJvmOptions, appPrograms, appLibFilter, appAdditionalLibs) map AppConfig)) ++
@@ -54,10 +55,24 @@ object SbtAppAssemblerPlugin extends Plugin {
         }
     }
 
+  private def distTaskZip = (appConfig, packageBin in Compile, dependencyClasspath, streams) map {
+    (conf, bin, cp, streams) ⇒ 
+      streams.log.info("Creating distribution %s ..." format conf.outputDirectory)
+      try {
+        val zip = DistBuilder.packageZip(conf, bin, cp)(streams.log)
+        streams.log.info("Distribution created.")
+        zip
+      } catch {
+        case e : Exception => sys.error(e.getMessage)
+      }
+  }
+
+
   private def distCleanTask = (appOutputDirectory, streams) map {
       (outDir, s) ⇒        
           s.log.info("Cleaning " + outDir)
           IO.delete(outDir)
+          IO.delete(new File(outDir.getParent, outDir.getName + ".zip"))
   }
 
   private def defaultAutoIncludeDirs = (sourceDirectory, target) map { (src, target) => 
