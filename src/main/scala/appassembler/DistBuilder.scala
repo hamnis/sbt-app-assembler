@@ -21,7 +21,7 @@ object DistBuilder {
         val binary = FileMapping(List(distBinPath), base = Some("bin"))
         val libraries = libFiles(classpath, conf.libFilter) ++ conf.additionalLibs ++ Seq(bin)
         val mapping = libraries.foldLeft(Map.empty[String, File]){case (m, f) => m.updated(("lib/" + f.getName), f)}
-        new FileMapping(mapping, permissions).append(auto).append(binary)
+        FileMapping(mapping, permissions).append(auto).append(binary)
       }
 
       val archiver = Archiver(Packaging(conf.output))
