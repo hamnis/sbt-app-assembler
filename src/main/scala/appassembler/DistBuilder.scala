@@ -18,7 +18,7 @@ object DistBuilder {
 
       val mapping = {
         val auto = FileMapping(conf.autoIncludeDirs.toList)
-        val binary = FileMapping(List(distBinPath), base = Some("bin"))
+        val binary = FileMapping(List(distBinPath), base = Some("bin"), permissions = permissions)
         val libraries = libFiles(classpath, conf.libFilter) ++ conf.additionalLibs ++ Seq(bin)
         val mapping = libraries.foldLeft(Map.empty[String, File]){case (m, f) => m.updated(("lib/" + f.getName), f)}
         FileMapping(mapping, permissions).append(auto).append(binary)
