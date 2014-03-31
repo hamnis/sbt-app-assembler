@@ -5,44 +5,27 @@ import scala.util.Try
 import scala.util.control.Exception._
 import classpath.ClasspathUtilities
 import java.io.File
+import archiver.{FileMapping, Archiver, FilePermissions, Packaging}
 
 object DistBuilder {
-  def createDirectory(conf: AppConfig, bin: Jar, classpath: Def.Classpath)(implicit logger: Logger) {
-    logger.info("Preparing directory: " + conf.outputDirectory)
-    val distBinPath = conf.outputDirectory / "bin"
-    val distLibPath = conf.outputDirectory / "lib"
-       
-    IO.createDirectory(conf.outputDirectory)
-    val scripts = new Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.programs)
-    scripts.writeScripts(distBinPath, Seq(Unix, Windows))
-    copyDirectories(conf.autoIncludeDirs, conf.outputDirectory)        
-    copyFiles(Seq(bin), distLibPath)
-    copyFiles(libFiles(classpath, conf.libFilter), distLibPath)
-    copyFiles(conf.additionalLibs, distLibPath)
-    logger.info("Done with directory: " + conf.outputDirectory)
-  }
+  val permissions = Map("/bin/*" -> FilePermissions(Integer.decode("0755")).get)
 
-  def packageZip(conf: AppConfig, bin: Jar, classpath: Def.Classpath)(implicit logger: Logger): File = {
-    IO.delete(conf.outputDirectory)
-    createDirectory(conf, bin, classpath)
-    
-    val zip = new File(conf.outputDirectory.getParent, conf.outputDirectory.getName + ".zip")
-    val fs = Archiver.buildFilesystem(conf.outputDirectory)
-    val permissions = Archiver.buildPermissions(fs, Map("/bin/*" -> java.lang.Integer.decode("0755")))
-    
-    Archiver.makeZip(fs, permissions, zip, logger)
-  }
+  def create(conf: AppConfig, bin: Jar, classpath: Def.Classpath)(implicit logger: Logger): File = {
+    IO.withTemporaryDirectory{ temp => 
+      val distBinPath = temp / "bin"
+      val scripts = new Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.programs)
+      scripts.writeScripts(distBinPath, Seq(Unix, Windows)) 
 
-  private def copyDirectories(fromDirs: Seq[Directory], to: Directory) = {
-    IO.createDirectory(to)
-    for (from ← fromDirs) {
-      IO.copyDirectory(from, to)
-    }
-  }
+      val mapping = {
+        val auto = FileMapping(conf.autoIncludeDirs.toList)
+        val binary = FileMapping(List(distBinPath), base = Some("bin"))
+        val libraries = libFiles(classpath, conf.libFilter) ++ conf.additionalLibs ++ Seq(bin)
+        val mapping = libraries.foldLeft(Map.empty[String, File]){case (m, f) => m.updated(("lib/" + f.getName), f)}
+        new FileMapping(mapping, permissions).append(auto).append(binary)
+      }
 
-  private def copyFiles(files: Seq[File], toDir: Directory) = {
-    for (f ← files) {
-      IO.copyFile(f, new File(toDir, f.getName))
+      val archiver = Archiver(Packaging(conf.output))
+      archiver.create(mapping, conf.output)
     }
   }
 

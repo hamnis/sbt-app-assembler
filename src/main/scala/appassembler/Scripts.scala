@@ -21,8 +21,25 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
   private val distShScript = (jvmOptions: String, mainClass: String) => {
     """|#!/bin/sh
     |
-    |APP_HOME="$(cd "$(cd "$(dirname "$0")"; pwd -P)"/..; pwd)"
-    |APP_CLASSPATH="$APP_HOME/lib/*:$APP_HOME/conf"
+    |PRG="$0"
+    |
+    |# need this for relative symlinks
+    |while [ -h "$PRG" ] ; do
+    |  ls=`ls -ld "$PRG"`
+    |  link=`expr "$ls" : '.*-> \(.*\)$'`
+    |  if expr "$link" : '/.*' > /dev/null; then
+    |    PRG="$link"
+    |  else
+    |    PRG="`dirname "$PRG"`/$link"
+    |  fi
+    |done
+    |
+    |APP_HOME=`dirname "$PRG"`/..
+    |
+    |# make it fully qualified
+    |APP_HOME=`cd "$APP_HOME" && pwd`
+    |
+    |APP_CLASSPATH="$APP_HOME/lib/*"
     |JAVA_OPTS="%s"
     |
     |java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.home="$APP_HOME" %s
@@ -32,7 +49,7 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
   private val distBatScript = (jvmOptions: String, mainClass: String) => {
     """|@echo off
     |set APP_HOME=%%~dp0..
-    |set APP_CLASSPATH=%%APP_HOME%%\lib\*;%%APP_HOME%%\conf
+    |set APP_CLASSPATH=%%APP_HOME%%\lib\*
     |set JAVA_OPTS=%s
     |
     |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.home="%%APP_HOME%%" %s

@@ -2,7 +2,7 @@ package appassembler
 
 import java.io.File
 
-case class AppConfig (outputDirectory: Directory,
+case class AppConfig (output: File,
                       autoIncludeDirs: Seq[Directory],
                       distJvmOptions: Seq[String],
                       programs: Seq[Program],
