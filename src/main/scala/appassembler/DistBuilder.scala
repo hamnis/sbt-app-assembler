@@ -11,7 +11,9 @@ object DistBuilder {
   val permissions = Map("/bin/*" -> FilePermissions(Integer.decode("0755")).get)
 
   def create(conf: AppConfig, bin: Jar, classpath: Def.Classpath)(implicit logger: Logger): File = {
-    archiver.IO.delete(conf.output) //TODO: Should this really be required?
+    if (conf.output.exists) {
+      archiver.IO.delete(conf.output) //TODO: Should this really be required?
+    }
 
     IO.withTemporaryDirectory{ temp => 
       val distBinPath = temp / "bin"
