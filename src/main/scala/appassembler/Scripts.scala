@@ -34,25 +34,34 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |  fi
     |done
     |
-    |APP_HOME=`dirname "$PRG"`/..
+    |if [ -z "${APP_HOME}" ]; then
+    |  APP_HOME=`dirname "$PRG"`/..
     |
-    |# make it fully qualified
-    |APP_HOME=`cd "$APP_HOME" && pwd`
+    |  # make it fully qualified
+    |  APP_HOME=`cd "$APP_HOME" && pwd`
+    |fi
     |
     |APP_CLASSPATH="$APP_HOME/lib/*"
-    |JAVA_OPTS="%s"
+    |JAVA_OPTS="$JAVA_OPTS @@jvmOptions@@"
     |
-    |java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.home="$APP_HOME" %s
-    |""".stripMargin.format(jvmOptions, mainClass)
+    |exec java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.home="$APP_HOME" @@mainClass@@ $@
+    |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 
   private val distBatScript = (jvmOptions: String, mainClass: String) => {
     """|@echo off
     |set APP_HOME=%%~dp0..
     |set APP_CLASSPATH=%%APP_HOME%%\lib\*
-    |set JAVA_OPTS=%s
+    |set JAVA_OPTS=%%JAVA_OPTS%% @@jvmOptions@@
+    |set CMD_LINE_ARGS=
+    |:setArgs
+    |if %1"=="" goto doneSetArgs
+    |  set CMD_LINE_ARGS="%%CMD_LINE_ARGS%% %1"
+    |  shift
+    |  goto setArgs
+    |:doneSetArgs
     |
-    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.home="%%APP_HOME%%" %s
-    |""".stripMargin.format(jvmOptions, mainClass)
+    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.home="%%APP_HOME%%" @@mainClass@@ "%%CMD_LINE_ARGS%%"
+    |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 }
