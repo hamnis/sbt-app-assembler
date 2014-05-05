@@ -4,7 +4,7 @@ publishTo <<= (version) apply {
 
 credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
-homepage := Some(new URL("http://github.com/hamnis/scala-archiver"))
+homepage := Some(new URL("http://github.com/hamnis/sbt-app-assembler"))
 
 startYear := Some(2014)
 
@@ -12,9 +12,9 @@ licenses := Seq(("Apache 2", new URL("http://www.apache.org/licenses/LICENSE-2.0
 
 pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Group(
   <scm>
-    <url>http://github.com/hamnis/scala-archiver</url>
-    <connection>scm:git:git://github.com/hamnis/scala-archiver.git</connection>
-    <developerConnection>scm:git:git@github.com:hamnis/scala-archiver.git</developerConnection>
+    <url>http://github.com/hamnis/sbt-app-assembler</url>
+    <connection>scm:git:git://github.com/hamnis/sbt-app-assembler.git</connection>
+    <developerConnection>scm:git:git@github.com:hamnis/sbt-app-assembler.git</developerConnection>
   </scm>
   <developers>
     <developer>
