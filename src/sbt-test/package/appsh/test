@@ -1,0 +1,3 @@
+> assemble
+$ exists target/appsh/root/bin/main
+$ exists target/appsh/root/bin/main.bat
