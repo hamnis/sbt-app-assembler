@@ -10,7 +10,7 @@ import archiver.{FileMapping, Archiver, FilePermissions, Packaging}
 object DistBuilder {
   val permissions = Map("/bin/*" -> FilePermissions(Integer.decode("0755")).get)
 
-  def create(conf: AppConfig, bin: Jar, classpath: Def.Classpath)(implicit logger: Logger): File = {
+  def create(conf: AppConfig, classpath: Seq[File])(implicit logger: Logger): File = {
     if (conf.output.exists) {
       archiver.IO.delete(conf.output) //TODO: Should this really be required?
     }
@@ -19,11 +19,11 @@ object DistBuilder {
       val distBinPath = temp / "bin"
       val scripts = new Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.programs)
       scripts.writeScripts(distBinPath, Seq(Unix, Windows)) 
-
+      
       val mapping = {
         val auto = FileMapping(conf.autoIncludeDirs.toList)
         val binary = FileMapping(List(distBinPath), base = Some("bin"), permissions = permissions)
-        val libraries = libFiles(classpath, conf.libFilter) ++ conf.additionalLibs ++ Seq(bin)
+        val libraries = classpath
         val mapping = libraries.foldLeft(Map.empty[String, File]){case (m, f) => m.updated(("lib/" + f.getName), f)}
         FileMapping(mapping, permissions).append(auto).append(binary)
       }
@@ -31,10 +31,5 @@ object DistBuilder {
       val archiver = Archiver(Packaging(conf.output))
       archiver.create(mapping, conf.output)
     }
-  }
-
-  private def libFiles(classpath: Def.Classpath, libFilter: File ⇒ Boolean): Seq[File] = {
-    val libs = classpath.map(_.data).filter(ClasspathUtilities.isArchive)
-    libs.map(_.asFile).filter(libFilter)
   }
 }

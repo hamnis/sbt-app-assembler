@@ -1,0 +1,8 @@
+> assemble
+$ exists main/target/appassembler/bin/main
+$ exists main/target/appassembler/bin/main.bat
+$ exists main/target/appassembler/lib/main_2.10-0.1.jar
+$ exists main/target/appassembler/lib/library_2.10-0.1.jar
+$ exists main/target/appassembler/lib/unfiltered_2.10-0.8.0.jar
+
+$ exec main/target/appassembler/bin/main

@@ -5,9 +5,7 @@ import java.io.File
 case class AppConfig (output: File,
                       autoIncludeDirs: Seq[Directory],
                       distJvmOptions: Seq[String],
-                      programs: Seq[Program],
-                      libFilter: File ⇒ Boolean,
-                      additionalLibs: Seq[File])
+                      programs: Seq[Program])
 
 
 
