@@ -63,7 +63,7 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |  goto setArgs
     |:doneSetArgs
     |
-    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.home="%%APP_HOME%%" "%%CMD_LINE_ARGS%%" @@mainClass@@
+    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.base="%%APP_HOME%%" -Dapp.home="%%APP_HOME%%" "%%CMD_LINE_ARGS%%" @@mainClass@@
     |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 }
