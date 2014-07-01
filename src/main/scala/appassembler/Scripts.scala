@@ -34,17 +34,19 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |  fi
     |done
     |
-    |if [ -z "${APP_HOME}" ]; then
-    |  APP_HOME=`dirname "$PRG"`/..
+    |APP_BASE=`dirname "$PRG"`/..
     |
-    |  # make it fully qualified
-    |  APP_HOME=`cd "$APP_HOME" && pwd`
+    |# make it fully qualified
+    |APP_BASE=`cd "$APP_BASE" && pwd`    
+    |
+    |if [ -z "${APP_HOME}" ]; then
+    |  APP_HOME=$APP_BASE
     |fi
     |
-    |APP_CLASSPATH="$APP_HOME/lib/*"
+    |APP_CLASSPATH="$APP_BASE/lib/*"
     |JAVA_OPTS="$JAVA_OPTS @@jvmOptions@@"
     |
-    |exec java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.home="$APP_HOME" $@ @@mainClass@@
+    |exec java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.base="$APP_BASE" -Dapp.home="$APP_HOME" $@ @@mainClass@@
     |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 

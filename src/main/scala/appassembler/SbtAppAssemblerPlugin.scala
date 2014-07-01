@@ -22,7 +22,7 @@ object SbtAppAssemblerPlugin extends Plugin {
 
   val appExclude = SettingKey[Seq[String]]("exclude these artifact files")
   val appDependencies = TaskKey[Seq[(Def.Classpath, ProjectRef)]]("Dependencies")
-  val appProjectUnmanagedJars = TaskKey[Seq[(Def.Classpath, ProjectRef)]]("Additional dependency jar files")
+  val appClasspath = TaskKey[Seq[(Def.Classpath, ProjectRef)]]("Classpath")
   val appProjectJars = TaskKey[Seq[(Jar, ProjectRef)]]("Project artifacts")
   val appConfig = TaskKey[AppConfig]("Configuration, internally used")  
 
@@ -31,7 +31,6 @@ object SbtAppAssemblerPlugin extends Plugin {
       appAssemble <<= distTask,
       packageBin <<= distTask,
       clean <<= distCleanTask,
-      dependencyClasspath <<= (dependencyClasspath in Runtime),
       unmanagedResourceDirectories <<= (unmanagedResourceDirectories in Runtime),
       appOutput := target.value / "appassembler",
       appAutoIncludeDirs <<= defaultAutoIncludeDirs,
@@ -41,18 +40,28 @@ object SbtAppAssemblerPlugin extends Plugin {
         if (programs.isEmpty) sys.error("No Main classes detected.") else programs
       },
       appExclude := Seq.empty[String],
-      appDependencies <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(dependencyClasspath in Runtime),
-      appProjectUnmanagedJars <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(unmanagedJars in Compile),
+      appClasspath <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(fullClasspath in Runtime),
+      appDependencies <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(externalDependencyClasspath in Runtime),
       appProjectJars <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(packageBin in Runtime),      
       appConfig <<= (appOutput, appAutoIncludeDirs, appJvmOptions, appPrograms) map AppConfig)) ++
       Seq(appAssemble <<= appAssemble in App, appPrograms in Compile := Nil)
 
-  private def distTask = (appConfig, appProjectJars, appProjectUnmanagedJars, appDependencies, streams) map {
-      (conf, projectJars, unmanagedJars, deps, streams) ⇒ 
-        val cp: Seq[File] = projectJars.map(_._1) ++ unmanagedJars.flatMap(_._1.map(_.data)) ++ deps.flatMap(_._1.map(_.data))
+  private def distTask = (appConfig, appProjectJars, appClasspath, appDependencies, streams) map {
+      (conf, projectJars, classpath, deps, streams) ⇒
+        import sbt.classpath.ClasspathUtilities
+
+        val libs         = classpath.flatMap(_._1.map(_.data)).toVector.filter(ClasspathUtilities.isArchive)
+        val depLibs      = deps.flatMap(_._1.map(_.data)).toSet.filter(ClasspathUtilities.isArchive)
+        val libsFiltered = (libs flatMap {
+          case jar if depLibs contains jar.asFile => Some(jar)
+          case jar => None
+        })
+        depLibs.foreach(println)
+
         streams.log.info("Creating distribution %s ...".format(conf.output))
         try {
-          val file = DistBuilder.create(conf, cp)(streams.log)
+
+          val file = DistBuilder.create(conf, libsFiltered)(streams.log)
           streams.log.info("Distribution created in %s.".format(file))
           file
         } catch {
