@@ -55,8 +55,7 @@ object SbtAppAssemblerPlugin extends Plugin {
         val libsFiltered = (libs flatMap {
           case jar if depLibs contains jar.asFile => Some(jar)
           case jar => None
-        })
-        depLibs.foreach(println)
+        }) ++ projectJars.map(_._1)
 
         streams.log.info("Creating distribution %s ...".format(conf.output))
         try {
