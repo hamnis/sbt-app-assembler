@@ -46,7 +46,7 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |APP_CLASSPATH="$APP_BASE/lib/*"
     |JAVA_OPTS="$JAVA_OPTS @@jvmOptions@@"
     |
-    |exec java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.base="$APP_BASE" -Dapp.home="$APP_HOME" $@ @@mainClass@@
+    |exec java $JAVA_OPTS -cp "$APP_CLASSPATH" -Dapp.base="$APP_BASE" -Dapp.home="$APP_HOME" @@mainClass@@ $@
     |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 
@@ -63,7 +63,7 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |  goto setArgs
     |:doneSetArgs
     |
-    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.base="%%APP_HOME%%" -Dapp.home="%%APP_HOME%%" "%%CMD_LINE_ARGS%%" @@mainClass@@
+    |java %%JAVA_OPTS%% -cp "%%APP_CLASSPATH%%" -Dapp.base="%%APP_HOME%%" -Dapp.home="%%APP_HOME%%"  @@mainClass@@ "%%CMD_LINE_ARGS%%"
     |""".stripMargin.replace("@@jvmOptions@@", jvmOptions).replace("@@mainClass@@", mainClass)
   }
 }

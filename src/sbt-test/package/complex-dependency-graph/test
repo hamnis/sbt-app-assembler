@@ -1,0 +1,6 @@
+> assemble
+$ exists target/appassembler/bin/main
+$ exists target/appassembler/bin/main.bat
+$ exists target/appassembler/lib
+$ exists target/appassembler/lib/netty-3.6.6.Final.jar
+$ absent target/appassembler/lib/netty-3.2.4.Final.jar
