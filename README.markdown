@@ -10,10 +10,10 @@ Restructure and cleanup of the plugin.
 
 ## Installation
 
-Add the following lines to PROJECT_DIR/project/plugin.sbt
+Add the following lines to PROJECT_DIR/project/plugins.sbt
 
 ```scala
-addSbtPlugin("net.hamnaberg.sbt" % "sbt-appassembler" % "0.2.0")
+addSbtPlugin("net.hamnaberg.sbt" % "sbt-appassembler" % "0.5.1")
 ```
 
 By default the plugin will detect all main classes and generate a script for it.
