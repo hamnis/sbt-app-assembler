@@ -39,7 +39,7 @@ class Scripts(jvmOptions: String, programs: Seq[Program]) {
     |# make it fully qualified
     |APP_BASE=`cd "$APP_BASE" && pwd`    
     |
-    |if [ -z "${APP_HOME}" ]; then
+    |if [ "Z${APP_HOME}" = "Z" ]; then
     |  APP_HOME=$APP_BASE
     |fi
     |
