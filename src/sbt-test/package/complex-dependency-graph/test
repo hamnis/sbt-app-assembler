@@ -1,4 +1,4 @@
-> assemble
+> app:package
 $ exists target/appassembler/bin/main
 $ exists target/appassembler/bin/main.bat
 $ exists target/appassembler/lib

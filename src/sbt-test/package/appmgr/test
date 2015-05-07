@@ -1,0 +1,3 @@
+> app:package
+$ exists target/appmgr/root/bin/main
+$ exists target/appmgr/root/bin/main.bat

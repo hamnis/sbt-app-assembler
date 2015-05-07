@@ -12,5 +12,3 @@ libraryDependencies ++= Seq(
     "org.apache.spark" %% "spark-core" % "1.0.0",
     "org.constretto" %% "constretto-scala" % "1.0"
 )
-
-appAssemblerSettings

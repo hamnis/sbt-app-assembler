@@ -27,11 +27,8 @@ pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Grou
 
 useGpg := true
 
-aetherPublishSettings
+disablePlugins(AetherPlugin)
 
-aetherArtifact <<= (coordinates, Keys.`package` in Compile, makePom in Compile, com.typesafe.sbt.pgp.PgpKeys.signedArtifacts in Compile) map {
-  (coords: aether.MavenCoordinates, mainArtifact: File, pom: File, artifacts: Map[Artifact, File]) =>
-    aether.Aether.createArtifact(artifacts, pom, coords, mainArtifact)
-}
+enablePlugins(SignedAetherPlugin)
 
-com.typesafe.sbt.pgp.PgpKeys.publishSigned <<= deploy
+overridePublishSignedSettings

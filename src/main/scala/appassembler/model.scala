@@ -8,7 +8,6 @@ case class AppConfig (output: File,
                       programs: Seq[Program])
 
 
-
 case class Program(name: String, mainClass: String)
 
 object Program {

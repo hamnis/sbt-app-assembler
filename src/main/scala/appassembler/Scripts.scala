@@ -4,7 +4,7 @@ import sbt._
 
 class Scripts(jvmOptions: String, programs: Seq[Program]) {
 
-  def writeScripts(to: Directory, platforms: Seq[Platform] = Seq(Unix))(implicit logger: Logger): Unit = programs.foreach { p =>
+  def writeScripts(to: Directory, platforms: Seq[Platform] = Seq(Unix))(implicit logger: Logger): Unit = programs.foreach{ p =>
     logger.info("Generating program '%s' for mainClass '%s'" format(p.name, p.mainClass))
     platforms.foreach(writeScript(to, p, _))
   }

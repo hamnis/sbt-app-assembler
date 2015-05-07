@@ -11,6 +11,6 @@ scalacOptions := Seq("-deprecation")
 
 ScriptedPlugin.scriptedSettings
 
-libraryDependencies += "net.hamnaberg" %% "scala-archiver" % "0.1.0"
+libraryDependencies += "net.hamnaberg" %% "scala-archiver" % "0.2.0"
 
 resolvers += Opts.resolver.sonatypeSnapshots

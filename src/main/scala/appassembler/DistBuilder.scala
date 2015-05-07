@@ -17,8 +17,11 @@ object DistBuilder {
 
     IO.withTemporaryDirectory{ temp => 
       val distBinPath = temp / "bin"
-      val scripts = new Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.programs)
-      scripts.writeScripts(distBinPath, Seq(Unix, Windows)) 
+      
+      if (conf.programs.nonEmpty) {
+        val scripts = new Scripts(conf.distJvmOptions.mkString("", " ", ""), conf.programs)
+        scripts.writeScripts(distBinPath, Seq(Unix, Windows)) 
+      }
       
       val mapping = {
         val auto = FileMapping(conf.autoIncludeDirs.toList)
@@ -31,5 +34,10 @@ object DistBuilder {
       val archiver = Archiver(Packaging(conf.output))
       archiver.create(mapping, conf.output)
     }
+  }
+
+  implicit class SBTLogger(logger: Logger) extends archiver.Logger {
+    def info(msg: String) = logger.info(msg)
+    def debug(msg: String) = logger.debug(msg) 
   }
 }

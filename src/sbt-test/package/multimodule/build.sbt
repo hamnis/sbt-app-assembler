@@ -17,7 +17,7 @@ lazy val library = project.settings(defaultSettings : _*).settings(
   libraryDependencies += "io.argonaut" %% "argonaut" % "6.0.4"
 )
 
-lazy val main = project.settings(defaultSettings : _*).settings(appAssemblerSettings : _*).settings(
+lazy val main = project.settings(defaultSettings : _*).settings(
   libraryDependencies += "net.databinder" %% "unfiltered-netty-server" % "0.8.0"
 ).dependsOn(library)
 

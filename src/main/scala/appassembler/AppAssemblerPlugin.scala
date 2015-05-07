@@ -7,44 +7,49 @@ import Def.Initialize
 
 import java.io.File
 
-object SbtAppAssemblerPlugin extends Plugin {
+object AppAssemblerPlugin extends AutoPlugin {
 
-  val App = config("app") extend(Runtime)
-
-  val appAssemble = TaskKey[Directory]("assemble", "Builds the app assembly directory")
-
-  val appOutput = SettingKey[File]("Output, May be anything that is supported by scala-archiver.")
-  val appAutoIncludeDirs = TaskKey[Seq[Directory]]("Files are copied from these directories")
-
-  val appJvmOptions = SettingKey[Seq[String]]("JVM parameters to use in start script")
-
-  val appPrograms = TaskKey[Seq[Program]]("Programs to generate start scripts for")
-
-  val appExclude = SettingKey[Seq[String]]("exclude these artifact files")
+  val appConfig = TaskKey[AppConfig]("Configuration, internally used")
   val appDependencies = TaskKey[Seq[(Def.Classpath, ProjectRef)]]("Dependencies")
   val appClasspath = TaskKey[Seq[(Def.Classpath, ProjectRef)]]("Classpath")
   val appProjectJars = TaskKey[Seq[(Jar, ProjectRef)]]("Project artifacts")
-  val appConfig = TaskKey[AppConfig]("Configuration, internally used")  
 
-  lazy val appAssemblerSettings: Seq[Setting[_]] =
-    inConfig(App)(Seq(
-      appAssemble <<= distTask,
+  object autoImport {
+    val App = config("app") extend(Runtime)
+
+    val appAutoIncludeDirs = TaskKey[Seq[Directory]]("Files are copied from these directories")
+    val appJvmOptions = SettingKey[Seq[String]]("JVM parameters to use in start script")
+    val appPrograms = TaskKey[Seq[Program]]("Configured programs. Will generate scripts for jvm programs")
+    val appExclude = SettingKey[Seq[String]]("exclude these artifact files")
+  }
+
+  import autoImport._
+
+  override def trigger = allRequirements
+
+  override def requires = plugins.JvmPlugin
+
+  override def projectSettings = inConfig(App)(Seq(
       packageBin <<= distTask,
+      Keys.`package` <<= distTask,
       clean <<= distCleanTask,
       unmanagedResourceDirectories <<= (unmanagedResourceDirectories in Runtime),
-      appOutput := target.value / "appassembler",
+      target := (target in Compile).value / "appassembler",
       appAutoIncludeDirs <<= defaultAutoIncludeDirs,
       appJvmOptions := Nil,
-      appPrograms <<= (appPrograms in Compile, discoveredMainClasses in Compile) map { (pgs, classes) =>
+      appPrograms <<= (appPrograms in Compile, discoveredMainClasses in Compile, streams) map { (pgs, classes, str) =>
         val programs = if (!pgs.isEmpty) pgs else classes.map(mc => Program(mc))
-        if (programs.isEmpty) sys.error("No Main classes detected.") else programs
+        if (programs.isEmpty) {
+          str.log.warn("No Main classes detected.")
+        }
+        programs
       },
       appExclude := Seq.empty[String],
       appClasspath <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(fullClasspath in Runtime),
       appDependencies <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(externalDependencyClasspath in Runtime),
       appProjectJars <<= (thisProjectRef, buildStructure, appExclude) flatMap getFromSelectedProjects(packageBin in Runtime),      
-      appConfig <<= (appOutput, appAutoIncludeDirs, appJvmOptions, appPrograms) map AppConfig)) ++
-      Seq(appAssemble <<= appAssemble in App, appPrograms in Compile := Nil)
+      appConfig <<= (target, appAutoIncludeDirs, appJvmOptions, appPrograms) map AppConfig)) ++
+      Seq(appPrograms in Compile := Nil)
 
   private def distTask = (appConfig, appProjectJars, appClasspath, appDependencies, streams) map {
       (conf, projectJars, classpath, deps, streams) ⇒
@@ -68,7 +73,7 @@ object SbtAppAssemblerPlugin extends Plugin {
         }
     }
 
-  private def distCleanTask = (appOutput, streams) map {
+  private def distCleanTask = (target in App, streams) map {
       (output, s) ⇒        
           s.log.info("Cleaning " + output)
           IO.delete(output)
